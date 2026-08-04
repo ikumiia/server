@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"><title>Архив</title>
+<style>
+body{margin:0;background:#0B0B0C;color:#F2EDE4;font-family:Georgia,serif;padding:30px 16px}
+.wrap{max-width:700px;margin:0 auto}
+h1{font-size:28px;font-weight:400}
+.panel{background:#161414;border:1px solid #2E2626;border-left:3px solid #B3242A;padding:16px;margin-bottom:18px;border-radius:2px}
+input,select,textarea{width:100%;background:#0B0B0C;color:#F2EDE4;border:1px solid #2E2626;padding:8px;margin-bottom:8px;font-family:inherit}
+button{background:#7A1418;color:#F2EDE4;border:1px solid #D8383E;padding:9px 16px;cursor:pointer;font-family:monospace}
+.card{background:#0B0B0C;border:1px solid #221D1D;padding:10px;margin-top:8px;border-radius:2px}
+.muted{color:#8C8677;font-size:12px}
+</style></head>
+<body><div class="wrap">
+<h1>道 Шкафчик</h1>
+<div class="panel">
+<input type="date" id="f-date">
+<select id="f-type"><option value="done">сделал</option><option value="learn">изучил</option></select>
+<textarea id="f-text" placeholder="Что сделал сегодня..."></textarea>
+<button onclick="save()">Сохранить</button>
+<p class="muted" id="status"></p>
+</div>
+<div id="list"></div>
+</div>
+<script>
+const today = new Date().toISOString().slice(0,10);
+document.getElementById('f-date').value = today;
+let entries = [];
+
+async function load(){
+  const res = await fetch('/api/entries');
+  entries = await res.json();
+  render();
+}
+
+async function save(){
+  const date = document.getElementById('f-date').value || today;
+  const type = document.getElementById('f-type').value;
+  const text = document.getElementById('f-text').value.trim();
+  if(!text){ document.getElementById('status').textContent='Напиши текст.'; return; }
+  const res = await fetch('/api/entries', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({date,type,text})
+  });
+  const saved = await res.json();
+  entries.push(saved);
+  document.getElementById('f-text').value='';
+  document.getElementById('status').textContent='Сохранено.';
+  render();
+}
+
+async function del(id){
+  await fetch('/api/entries/'+id, {method:'DELETE'});
+  entries = entries.filter(e=>e.id!==id);
+  render();
+}
+
+function render(){
+  const list = document.getElementById('list');
+  if(entries.length===0){ list.innerHTML='<p class="muted">Пусто.</p>'; return; }
+  const sorted = [...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  list.innerHTML = sorted.map(e => `
+    <div class="card">
+      <span class="muted">${e.date} · ${e.type}</span>
+      <div>${e.text}</div>
+      <button onclick="del('${e.id}')" style="margin-top:6px;padding:4px 10px;font-size:11px;">удалить</button>
+    </div>
+  `).join('');
+}
+load();
+</script>
+</body></html>
